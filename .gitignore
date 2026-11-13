@@ -127,3 +127,13 @@ $RECYCLE.BIN/
 
 
 # End of https://www.gitignore.io/api/osx,node,linux,windows
+.omni/
+.claude/
+.github/
+.cursor/
+.kiro/
+.agents/
+.env.omni
+.omni/collector.json
+.aws-sam/
+.playwright-cli/

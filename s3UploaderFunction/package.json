@@ -9,7 +9,5 @@
   "keywords": [],
   "author": "James Beswick, Amazon Web Services",
   "license": "MIT",
-  "dependencies": {
-    "aws-sdk": "^2.714.0"
-  }
+  "dependencies": {}
 }

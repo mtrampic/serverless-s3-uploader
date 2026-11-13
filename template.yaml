@@ -1,24 +1,29 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Serverless S3 Uploader - upload files to S3 buckets from your web applications using pre-signed URLs.
+Description: Serverless S3 Uploader - per-user authenticated uploads using pre-signed URLs.
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Api:
-    # Allows any site to call these APIs (can restrict by replacing asterisk with site name)
-    # Automatically adds AllowMethods with a list of methods for this API
-    EndpointConfiguration: EDGE      
+    EndpointConfiguration: EDGE
     Cors:
       AllowMethods: "'OPTIONS,GET'"
-      AllowHeaders: "'Content-Type'"
-      AllowOrigin: "'*'" 
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"
   Function:
-    Timeout: 5
+    Timeout: 10
 
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
       CorsConfiguration:
         CorsRules:
         - AllowedHeaders:
@@ -32,34 +37,53 @@ Resources:
           AllowedOrigins:
             - "*"
 
+  UsersTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: username
+        Type: String
+
   S3UploaderFunction:
-    # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-    Type: AWS::Serverless::Function 
+    Type: AWS::Serverless::Function
     Properties:
       CodeUri: s3UploaderFunction/
       Handler: app.handler
-      Runtime: nodejs12.x
+      Runtime: nodejs20.x
       MemorySize: 128
       Environment:
         Variables:
           UploadBucket: !Ref S3Bucket
+          UsersTable: !Ref UsersTable
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref S3Bucket
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
       Events:
-        HttpPost:
+        Home:
           Type: Api
           Properties:
             Path: '/'
             Method: get
+        ListFiles:
+          Type: Api
+          Properties:
+            Path: '/list'
+            Method: get
+        UploadUrl:
+          Type: Api
+          Properties:
+            Path: '/upload-url'
+            Method: get
 
 Outputs:
-  S3UploaderFunction:
-    Description: "Lambda Function ARN"
-    Value: !GetAtt S3UploaderFunction.Arn
-  S3UploaderFunctionIamRole:
-    Description: "Implicit IAM Role created for function"
-    Value: !GetAtt S3UploaderFunctionRole.Arn
+  ApiEndpoint:
+    Description: API Gateway endpoint
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  UsersTableName:
+    Description: DynamoDB users table
+    Value: !Ref UsersTable
   S3BucketName:
     Description: S3 bucket
     Value: !Ref S3Bucket
